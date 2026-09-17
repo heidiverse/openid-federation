@@ -1,5 +1,5 @@
 [package]
-name = "openidconnect-federation"
+name = "openid-federation"
 version = "0.1.0"
 edition = "2024"
 

@@ -7,7 +7,7 @@ use axum::{
     routing::get,
 };
 use heidi_jwt::{Jwk, JwkSet, JwsHeader, chrono::Duration, jwt::creator::JwtCreator};
-use openidconnect_federation::models::{EntityStatementBuilder, transformer::Value};
+use openid_federation::models::{EntityStatementBuilder, transformer::Value};
 use serde_json::json;
 
 static PARTIES: LazyLock<HashMap<String, FederationParty>> = LazyLock::new(|| {
@@ -180,7 +180,7 @@ async fn fetch_subordinate(
 
 fn create_entity_config(
     sub: &str,
-    metadata: HashMap<String, openidconnect_federation::models::transformer::Value>,
+    metadata: HashMap<String, openid_federation::models::transformer::Value>,
     authority: Option<String>,
     key: &Jwk,
 ) -> String {
@@ -211,7 +211,7 @@ fn create_entity_config(
 fn create_subordinate_statement(
     sub: &str,
     iss: &str,
-    metadata: Option<HashMap<String, openidconnect_federation::models::transformer::Value>>,
+    metadata: Option<HashMap<String, openid_federation::models::transformer::Value>>,
     subject_key: &Jwk,
     issuer_key: &Jwk,
 ) -> String {
