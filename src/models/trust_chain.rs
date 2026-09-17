@@ -51,6 +51,13 @@ pub enum TrustAnchor {
     Subject(String),
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct VerificationOptions {
+    /// Verify the leaf entity configuration with its own JWK set instead of
+    /// requiring the leaf subordinate statement to contain those keys.
+    pub lenient_leaf_entity_config: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct FederationRelation<Config: FetchConfig = DefaultConfig> {
     pub leaf: Entity,
@@ -465,6 +472,13 @@ impl<Config: FetchConfig> FederationRelation<Config> {
     }
 
     pub fn verify(&self) -> Result<(), Vec<FederationError>> {
+        self.verify_with_options(VerificationOptions::default())
+    }
+
+    pub fn verify_with_options(
+        &self,
+        options: VerificationOptions,
+    ) -> Result<(), Vec<FederationError>> {
         // leaf needs entity config
         let mut errors = vec![];
         let Some(ec) = self.leaf.entity_config.as_ref() else {
@@ -485,9 +499,12 @@ impl<Config: FetchConfig> FederationRelation<Config> {
                 | EntityConfig::Intermediate(jwt)
                 | EntityConfig::TrustAnchor(jwt) => jwt,
             };
-            if let Err(e) =
+            let verification_result = if options.lenient_leaf_entity_config {
+                inner.verify_signature(&inner.payload_unverified().insecure().jwks())
+            } else {
                 inner.verify_signature(&sub_state.payload_unverified().insecure().jwks())
-            {
+            };
+            if let Err(e) = verification_result {
                 errors.push(TrustChainError::ConfigNotSignedWithSubordinate(format!(
                     "[LEAF] EntityConfigError <-> Subordinate: {e}"
                 )));

@@ -192,18 +192,35 @@ mod tests {
             .pretty()
             .finish();
         let _ = tracing::subscriber::set_global_default(subscriber);
-        // let issuer = "https://procivis.sandbox.findy.fi/ssi/openid4vci/final-1.0/df0fc41b-f631-4f3c-b4ba-6b9e13c75e54";
-        let issuer = "https://issuer.waltid.dev.findy.fi/draft13";
-        let mut trust_chain = DefaultFederationRelation::new_from_url(issuer).unwrap();
-        let res = trust_chain.build_trust();
-        debug!(error = ?res, "[build_trust]");
-        let res = trust_chain.verify();
+        // let issuer = "https://procivis.staging.findy.fi/ssi/openid4vci/final-1.0/OPENID4VCI_FINAL1/358cdf66-979f-4ed5-9c64-422f2d7b4992";
+        let issuer = "https://procivis.staging.findy.fi/ssi/openid4vci/final-1.0/OPENID4VCI_FINAL1/df32e904-a260-4cb1-a299-5bb8b42a7ea1/3b0fbc33-68d2-49b9-b339-7b78a797d7ea";
+        // let issuer = "https://issuer.waltid.dev.findy.fi/draft13";
+        //
+        let mut trust_graph = DefaultFederationRelation::new_from_url(issuer).unwrap();
+        let res = trust_graph.build_trust();
 
-        debug!(error = ?res, "[verify_trust]");
-        let trust_chain = trust_chain.find_shortest_trust_chain(None).unwrap();
+        tracing::info!(error = ?res, "[build_trust]");
+        let res = trust_graph.verify();
+
+        tracing::info!(error = ?res, "[verify_trust]");
+
+        let trust_chain = trust_graph
+            .find_shortest_trust_chain(Some(&TrustStore(vec![TrustAnchor::Subject(
+                "https://findy.trustregistry.eu".to_string(),
+            )])))
+            .unwrap();
         for c in trust_chain {
-            println!("{:?}", c.iss);
+            println!();
+            println!("Iss: {:?}", c.iss);
+            println!("Sub: {:?}", c.sub());
+            println!("Jwks: {:#?}", c.jwks);
+            println!();
         }
+        let metadata = trust_graph.resolve_metadata(None);
+        println!(
+            "{}",
+            serde_json::to_string(&metadata["openid_credential_issuer"]).unwrap()
+        );
     }
 
     #[test]
@@ -245,9 +262,11 @@ mod tests {
             }),
             &root_signer,
         );
-        let intermediate2_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate2_key)
-            .unwrap();
+        let intermediate2_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate2_key)
+                .unwrap(),
+        );
 
         // let mitm_signer = heidi_jwt::ES256.signer_from_jwk(&mitm_key).unwrap();
         let (intermediate1_jwt, intermediate1_key) = create_statement(
@@ -267,9 +286,11 @@ mod tests {
             &intermediate1_key,
         );
 
-        let intermediate1_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate1_key)
-            .unwrap();
+        let intermediate1_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate1_key)
+                .unwrap(),
+        );
         let (leaf_sub, leaf_key) = create_statement(
             "intermediate1",
             "leaf",
@@ -402,9 +423,11 @@ mod tests {
             &Value::Null,
             &anchor_a_signer,
         );
-        let intermediate7_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate7_key)
-            .unwrap();
+        let intermediate7_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate7_key)
+                .unwrap(),
+        );
 
         // 10 -> 7: Anchor C issues statement about intermediate7
         let (intermediate7_from_c, _) = create_cross_signed(
@@ -424,9 +447,11 @@ mod tests {
             &Value::Null,
             &anchor_b_signer,
         );
-        let intermediate6_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate6_key)
-            .unwrap();
+        let intermediate6_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate6_key)
+                .unwrap(),
+        );
 
         // 8 -> 6: Anchor A issues statement about intermediate6
         let (intermediate6_from_a, _) = create_cross_signed(
@@ -466,9 +491,11 @@ mod tests {
             &Value::Null,
             &intermediate6_signer,
         );
-        let intermediate4_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate4_key)
-            .unwrap();
+        let intermediate4_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate4_key)
+                .unwrap(),
+        );
 
         // 7 -> 4: intermediate7 issues statement about intermediate4
         let (intermediate4_from_7, _) = create_cross_signed(
@@ -498,9 +525,11 @@ mod tests {
             &Value::Null,
             &intermediate6_signer,
         );
-        let intermediate5_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate5_key)
-            .unwrap();
+        let intermediate5_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate5_key)
+                .unwrap(),
+        );
 
         // 4 -> 5: intermediate4 issues statement about intermediate5
         let (intermediate5_from_4, _) = create_cross_signed(
@@ -530,9 +559,11 @@ mod tests {
             &Value::Null,
             &intermediate4_signer,
         );
-        let intermediate3_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate3_key)
-            .unwrap();
+        let intermediate3_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate3_key)
+                .unwrap(),
+        );
 
         // 5 -> 3: intermediate5 issues statement about intermediate3
         let (intermediate3_from_5, _) = create_cross_signed(
@@ -552,9 +583,11 @@ mod tests {
             &Value::Null,
             &intermediate3_signer,
         );
-        let intermediate1_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate1_key)
-            .unwrap();
+        let intermediate1_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate1_key)
+                .unwrap(),
+        );
 
         // 3 -> 2: intermediate3 issues statement about intermediate2
         let (intermediate2_from_3, intermediate2_key) = create_statement(
@@ -564,9 +597,11 @@ mod tests {
             &Value::Null,
             &intermediate3_signer,
         );
-        let intermediate2_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate2_key)
-            .unwrap();
+        let intermediate2_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate2_key)
+                .unwrap(),
+        );
 
         // 1 -> 0: intermediate1 issues statement about leaf
         let (leaf_from_1, leaf_key) = create_statement(
@@ -719,9 +754,11 @@ mod tests {
             &Value::Null,
             &anchor_a_signer,
         );
-        let intermediate3_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate3_key)
-            .unwrap();
+        let intermediate3_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate3_key)
+                .unwrap(),
+        );
 
         // 6 -> 2: Anchor B issues statement about intermediate2
         let (intermediate2_from_b, intermediate2_key) = create_statement(
@@ -731,9 +768,11 @@ mod tests {
             &Value::Null,
             &anchor_b_signer,
         );
-        let intermediate2_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate2_key)
-            .unwrap();
+        let intermediate2_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate2_key)
+                .unwrap(),
+        );
 
         // 6 -> 3: Anchor B issues statement about intermediate3
         let (intermediate3_from_b, _) = create_cross_signed(
@@ -753,9 +792,11 @@ mod tests {
             &Value::Null,
             &intermediate2_signer,
         );
-        let intermediate1_signer = heidi_jwt::ES256
-            .signer_from_jwk(&intermediate1_key)
-            .unwrap();
+        let intermediate1_signer = Box::new(
+            heidi_jwt::ES256
+                .signer_from_jwk(&intermediate1_key)
+                .unwrap(),
+        );
 
         // 3 -> 0: intermediate3 issues statement about leaf A
         let (leaf_a_from_3, leaf_a_key) = create_statement(
@@ -888,7 +929,7 @@ mod tests {
         metadata_policy: &Value,
         root_key: &Jwk,
         authority_hints: &Value,
-    ) -> (String, impl JwsSigner) {
+    ) -> (String, Box<dyn JwsSigner>) {
         let mut public_key = root_key.to_public_key().unwrap();
         public_key.set_key_id(format!("{}", iss));
         let mut root = json!({
@@ -908,7 +949,7 @@ mod tests {
         jws_header.set_algorithm(heidi_jwt::ES256.name());
         jws_header.set_token_type("entity-statement+jwt");
         jws_header.set_key_id(public_key.key_id().unwrap());
-        let new_signer = heidi_jwt::ES256.signer_from_jwk(&root_key).unwrap();
+        let new_signer = Box::new(heidi_jwt::ES256.signer_from_jwk(&root_key).unwrap());
 
         return (
             root.create_jwt(&jws_header, Some(iss), Duration::minutes(2), &new_signer)
