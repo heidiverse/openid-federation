@@ -29,6 +29,11 @@ pub mod policy;
 pub type DefaultFederationRelation = FederationRelation;
 pub trait FetchConfig {
     const VERIFY_TLS: bool;
+
+    /// Optional user-agent supplied by the embedding application.
+    fn user_agent() -> Option<String> {
+        None
+    }
 }
 
 pub struct DefaultConfig;
@@ -47,8 +52,9 @@ where
     Config: FetchConfig,
 {
     let mut client = reqwest::blocking::Client::builder();
-    if Config::VERIFY_TLS {
-        client = client.danger_accept_invalid_certs(false);
+    client = client.danger_accept_invalid_certs(!Config::VERIFY_TLS);
+    if let Some(user_agent) = Config::user_agent() {
+        client = client.user_agent(user_agent);
     }
     let client = client.build().unwrap();
     let response = client
@@ -69,8 +75,9 @@ pub async fn fetch_jwt_async<
     url: &str,
 ) -> Result<Jwt<T>, FederationError> {
     let mut client = reqwest::Client::builder();
-    if Config::VERIFY_TLS {
-        client = client.danger_accept_invalid_certs(false);
+    client = client.danger_accept_invalid_certs(!Config::VERIFY_TLS);
+    if let Some(user_agent) = Config::user_agent() {
+        client = client.user_agent(user_agent);
     }
     let client = client.build().unwrap();
     let response = client
